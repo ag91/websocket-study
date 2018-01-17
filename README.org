@@ -1,0 +1,172 @@
+* DONE websockets 
+CLOSED: [2018-01-17 Wed 12:17] SCHEDULED:<2018-01-19 Fri>
+  :PROPERTIES:
+  :ID:       A0B72B36-BD3E-4887-AEE8-899C4BECE735
+  :CREATED:  [2018-01-17 Wed 12:17]
+  :END:
+  :LOGBOOK:
+  - Note taken on [2018-01-17 Wed 12:19] \\
+    used mostly https://en.wikipedia.org/wiki/WebSocket
+  - CLOSING NOTE [2018-01-17 Wed 12:17]
+  :END:
+See:
+
+** DONE what is it?
+CLOSED: [2018-01-02 Tue 13:17]
+:PROPERTIES:
+:CREATED:  [2018-01-02 Tue 13:15]
+:END:
+:LOGBOOK:
+- CLOSING NOTE [2018-01-02 Tue 13:17]
+:END:
+
+It is a protocol to provide full-duplex channel over a single TCP.
+It allows streams of messages over TCP.
+** DONE how is the protocol defined? 
+CLOSED: [2018-01-17 Wed 12:03]
+:PROPERTIES:
+:CREATED:  [2018-01-02 Tue 13:17]
+:END:
+:LOGBOOK:
+- CLOSING NOTE [2018-01-17 Wed 12:03]
+:END:
+
+#+BEGIN_SRC elisp
+;; this is pseudo-code to understand the websocket handshake in more detail
+
+(setq request-headers
+      '((host . "someHost")
+        (upgrade . "websocket")
+        (connection . "upgrade") ; this tells the server to
+                                 ; keep the connection alive
+        (sec-websocket-key . "someKey") ; no security from this: it
+                                        ; only prevents caching proxy
+                                        ; from resending old messages
+        (sec-websocket-protocol . '("chat" "superchat"))
+        (sec-websocket-version . 13)
+        (origin . "someUri")))
+(setq handshake-request '('get 'path "HTTP/1.1" request-headers))
+(setq client-request handshake-request)
+
+;; at this point there is a server response that signal that a
+;; communication channel is in place
+(setq response-headers
+      '((connection . "Upgrade")
+        (sec-websocket-accept . "someKey") ;; this ;;
+        ;; is
+        ;; different
+        ;; from
+        ;; sec-websocket-key:
+        ;; see
+        ;; https://stackoverflow.com/questions/34778321/websocket-handshake-sec-websocket-accept-header-value-is-incorrect
+        (sec-websocket-protocol . "chat")))
+(setq handshake-response
+      '('http-protocol
+        'status-code
+        'message ;;if successful this is "Switching Protocols"
+        'response-headers))
+(setq server-response handshake-response)
+
+;; from this point the connection does not follow the HTTP protocol
+;; anymore.
+
+;; data is sent as frames which have typically a short header and a payload
+
+;; messages can be split in frames and this allows data streams
+#+END_SRC
+
+TLS can be added through the HTTP protocol to support that message
+contents is disclosed only to the recipient.
+
+** DONE try it!
+CLOSED: [2018-01-17 Wed 12:17]
+:PROPERTIES:
+:CREATED:  [2018-01-02 Tue 13:15]
+:END:
+:LOGBOOK:
+- CLOSING NOTE [2018-01-17 Wed 12:17]
+- Note taken on [2018-01-17 Wed 12:13] \\
+  https://www.websocket.org/echo.html
+:END:
+
+#+BEGIN_SRC html :tangle /tmp/websocket.html
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>WebSocket Test</title>
+<script language="javascript" type="text/javascript">
+
+  var wsUri = "ws://echo.websocket.org/";
+  var output;
+
+  function init()
+  {
+  output = document.getElementById("output");
+  testWebSocket();
+  }
+
+  function testWebSocket()
+  {
+  websocket = new WebSocket(wsUri);
+  websocket.onopen = function(evt) { onOpen(evt) };
+  websocket.onclose = function(evt) { onClose(evt) };
+  websocket.onmessage = function(evt) { onMessage(evt) };
+  websocket.onerror = function(evt) { onError(evt) };
+  }
+
+  function onOpen(evt)
+  {
+  writeToScreen("CONNECTED");
+  doSend("WebSocket rocks");
+  }
+
+  function onClose(evt)
+  {
+  writeToScreen("DISCONNECTED");
+  }
+
+  function onMessage(evt)
+  {
+  writeToScreen('<span style="color: blue;">RESPONSE: ' + evt.data+'</span>');
+  websocket.close();
+  }
+
+  function onError(evt)
+  {
+  writeToScreen('<span style="color: red;">ERROR:</span> ' + evt.data);
+  }
+
+  function doSend(message)
+  {
+  writeToScreen("SENT: " + message);
+  websocket.send(message);
+  }
+
+  function writeToScreen(message)
+  {
+  var pre = document.createElement("p");
+  pre.style.wordWrap = "break-word";
+  pre.innerHTML = message;
+  output.appendChild(pre);
+  }
+
+  window.addEventListener("load", init, false);
+
+</script>
+
+<h2>WebSocket Test</h2>
+
+<div id="output"></div>          
+#+END_SRC
+
+Note that the interfaces of the websocket is really clean:
+
+#+BEGIN_SRC js
+function testWebSocket()
+  {
+  websocket = new WebSocket(wsUri);
+  websocket.onopen = function(evt) { onOpen(evt) };
+  websocket.onclose = function(evt) { onClose(evt) };
+  websocket.onmessage = function(evt) { onMessage(evt) };
+  websocket.onerror = function(evt) { onError(evt) };
+}
+#+END_SRC
